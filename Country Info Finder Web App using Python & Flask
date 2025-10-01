@@ -1,0 +1,115 @@
+from flask import Flask, request, render_template_string
+import requests
+
+app = Flask(__name__)
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Country Info Finder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #f1f1f1;
+            text-align: center;
+            padding: 40px;
+        }
+        input {
+            padding: 10px;
+            width: 250px;
+            background-color: #1e1e1e;
+            border: 1px solid #444;
+            color: white;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        .result {
+            margin-top: 30px;
+            text-align: left;
+            display: inline-block;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #000;
+        }
+        h1, h2 {
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌍 Country Info Finder</h1>
+    <form method="POST">
+        <input type="text" name="country" placeholder="Enter country name" required>
+        <button type="submit">Search</button>
+    </form>
+    
+    {% if result %}
+    <div class="result">
+        <h2>✅ {{ result.name }}</h2>
+        <p><b>🏛 Capital:</b> {{ result.capital }}</p>
+        <p><b>🌍 Region:</b> {{ result.region }}</p>
+        <p><b>👥 Population:</b> {{ result.population }}</p>
+        <p><b>📏 Area:</b> {{ result.area }} sq. km</p>
+        <p><b>🗣 Languages:</b> {{ result.languages }}</p>
+        <p><b>💰 Currencies:</b> {{ result.currencies }}</p>
+    </div>
+    {% endif %}
+</body>
+</html>
+"""
+
+def get_country_info(name):
+    url = f"https://restcountries.com/v3.1/name/{name}"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()[0]
+
+            name = data.get("name", {}).get("common", "N/A")
+            capital = data.get("capital", ["N/A"])[0]
+            region = data.get("region", "N/A")
+            population = data.get("population", "N/A")
+            area = data.get("area", "N/A")
+
+            languages = ", ".join(data.get("languages", {}).values()) \
+                if data.get("languages") else "N/A"
+
+            currencies = ", ".join(
+                [f"{v.get('name')} ({k})" for k, v in data.get("currencies", {}).items()]
+            ) if data.get("currencies") else "N/A"
+
+            return {
+                "name": name,
+                "capital": capital,
+                "region": region,
+                "population": population,
+                "area": area,
+                "languages": languages,
+                "currencies": currencies
+            }
+        else:
+            return None
+    except:
+        return None
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    result = None
+    if request.method == "POST":
+        country = request.form["country"].strip()
+        result = get_country_info(country)
+    return render_template_string(HTML_TEMPLATE, result=result)
+
+if __name__ == "__main__":
+    app.run(debug=True)
